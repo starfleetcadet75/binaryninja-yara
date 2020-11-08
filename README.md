@@ -12,7 +12,7 @@ By default, a report will also be generated that lists the results from the scan
 YARA rules are reloaded each time a new scan is started.
 Rules can be manually loaded from a file or loaded from a custom rules directory.
 
-![Demo](https://raw.githubusercontent.com/starfleetcadet75/binaryninja-yara/master/demo.gif)
+![Demo](https://raw.githubusercontent.com/starfleetcadet75/binaryninja-yara/main/demo.gif)
 
 ### Scanning for Crypto Constants
 
