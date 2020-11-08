@@ -1,0 +1,20 @@
+{
+    "pluginmetadataversion": 2,
+    "plugin": {
+        "name": "YARA Scanner Plugin",
+        "type": ["helper"],
+        "api": ["python3"],
+        "description": "YARA signature scanner for Binary Ninja.",
+        "longdescription": "## Description\n\nThis plugin provides support for scanning binaries loaded in Binary Ninja with YARA rules. Matches are tagged with a _YARA Matches_ tag and are displayed in the tags window. By default, a report will also be generated that lists the results from the scan. YARA rules are reloaded each time a new scan is started. Rules can be manually loaded from a file or loaded from a custom rules directory.\n\n![Demo](https:\/\/raw.githubusercontent.com\/starfleetcadet75\/binaryninja-yara\/master\/demo.gif)\n\n### Scanning for Crypto Constants\n\nThis plugin also provides a [findcrypt](https:\/\/github.com\/you0708\/ida\/tree\/master\/idapython_tools\/findcrypt) equivalent for Binary Ninja by including a set of built-in YARA rules for crypto detection. The original ruleset was taken from the [Yara-Rules](https:\/\/github.com\/Yara-Rules\/rules\/blob\/master\/crypto\/crypto_signatures.yar) project and has been modified to include additional signatures from other sources.\n\n### Custom YARA Rules\n\nYARA rules can be loaded from a specific file by selecting _Scan with File_. This will not load any other rules. The _Scan_ menu option will load all built-in signatures in addition to searching for any YARA files (*.yar, *.yara) in custom locations that the user has provided in the plugin's settings.\n\n### Settings\n\nThis plugin provides the following settings:\n- *Custom YARA Rules Path*: Absolute path to a directory containing custom YARA rule files (*.yar, *.yara). Use a semicolon to delimit multiple paths.\n- *Scan Timeout*: Timeout for running a YARA scan. A value of 0 disables this feature. The default value is 60 seconds. Time is specified in seconds.\n- *Show YARA Report*: The plugin will display a report of the YARA results when the scan has finished.\n\n### Resources\n\n- [YARA Documentation](https:\/\/yara.readthedocs.io\/en\/stable\/yarapython.html)\n- [Awesome-YARA](https:\/\/github.com\/InQuest\/awesome-yara)\n- [Yara-Rules](https:\/\/github.com\/Yara-Rules\/rules)\n\n## Required Dependencies\n\nThis plugin requires the pip package `python-yara`.\n\n## License\n\nThis plugin is released under a MIT license.",
+        "license": {
+            "name": "MIT",
+            "text": "Copyright (c) 2020 starfleetcadet75\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+        },
+        "dependencies": {
+            "pip": ["python-yara"]
+        },
+        "version": "1.0",
+        "author": "starfleetcadet75",
+        "minimumBinaryNinjaVersion": 2000
+    }
+}
