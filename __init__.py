@@ -9,13 +9,28 @@ from . import settings
 RULES_DIR = os.path.dirname(os.path.realpath(__file__)) + os.sep + "rules"
 
 
+def get_instruction_containing(function, address):
+    bb = function.get_basic_block_at(address)
+    text = bb.get_disassembly_text()
+
+    # Handle the last instruction in the block
+    if text[-1].address <= address:
+        return text[-1].address
+
+    for i in range(1, len(text)):
+        if text[i - 1].address <= address and address < text[i].address:
+            return text[i - 1].address
+
+
 class YaraScan(BackgroundTaskThread):
     def __init__(self, bv, filepath=None, directories=None):
         self.progress_banner = "Running YARA scan"
         BackgroundTaskThread.__init__(self, self.progress_banner, True)
 
         self.bv = bv
+        self.reader = BinaryReader(self.bv)
         self.rules = []
+        self.results = []
 
         # Ensure that the tag types exist before using it
         if "YARA Matches" not in bv.tag_types:
@@ -29,63 +44,25 @@ class YaraScan(BackgroundTaskThread):
 
     def run(self):
         log_info("Scanning binary view for matching YARA signatures")
-        reader = BinaryReader(self.bv)
-        results = []
+
+        # TODO: Scan the raw binary data from the Raw view instead of by segment.
+        # This would require mapping the addresses from the Raw view to the PE/ELF views.
+        # raw = self.bv.get_view_of_type("Raw")
+        # reader = BinaryReader(raw)
+        # data = reader.read(raw.end)
 
         try:
             for idx, rule in enumerate(self.rules):
-                for segment in self.bv.segments:
-                    if self.cancelled:
-                        return
+                if len(self.bv.segments) == 0:
+                    # Scan binary without segments
+                    self.scan(self.bv.start, self.bv.end, rule)
+                else:
+                    # Scan by segment
+                    for segment in self.bv.segments:
+                        if self.cancelled:
+                            return
 
-                    # Scan the binary contents for each segment
-                    reader.seek(segment.start)
-                    data = reader.read(segment.data_length)
-
-                    matches = rule.match(
-                        data=data,
-                        timeout=Settings().get_integer("yara.timeout")
-                    )
-
-                    for match in matches:
-                        name = match.rule
-
-                        # Include the rule description if the metadata field is present
-                        try:
-                            description = f"{name}: {match.meta['description']}"
-                        except KeyError:
-                            description = f"{name}"
-
-                        tag = self.bv.create_tag(self.bv.tag_types["YARA Matches"], description, True)
-
-                        for address, var, value in match.strings:
-                            # Fix address offset
-                            address += segment.start
-
-                            # Display data values correctly in the report
-                            if value.isascii():
-                                value = value.decode("ascii")
-                            elif self.bv.endianness == Endianness.BigEndian:
-                                value = hex(int.from_bytes(value, "big"))
-                            else:
-                                value = hex(int.from_bytes(value, "little"))
-
-                            results.append({
-                                "address": address,
-                                "name": name,
-                                "string": var,
-                                "value": value
-                            })
-
-                            # Add the address or data tag
-                            funcs = self.bv.get_functions_containing(address)
-                            if 0 < len(funcs):
-                                for f in funcs:
-                                    # TODO: Its possible for an address to point into the middle of an instruction,
-                                    # which will prevent the tag from appearing in the disassembly view
-                                    f.add_user_address_tag(address, tag)
-                            else:
-                                self.bv.add_user_data_tag(address, tag)
+                        self.scan(segment.start, segment.data_length, rule)
 
                 self.progress = f"{self.progress_banner} matching on rules ({round((idx / len(self.rules)) * 100)}%)"
 
@@ -95,20 +72,67 @@ class YaraScan(BackgroundTaskThread):
             log_error("Error matching on YARA rules: {}".format(str(err)))
             show_message_box("Error", "Check logs for details", icon=MessageBoxIcon.ErrorIcon)
 
-        if 0 < len(results):
+        if 0 < len(self.results):
             if Settings().get_bool("yara.displayReport"):
-                self.display_report(results)
+                self.display_report()
         else:
             log_info("YARA scan finished with no matches.")
 
-    def display_report(self, results):
+    def scan(self, start, length, rule):
+        self.reader.seek(start)
+        data = self.reader.read(length)
+
+        matches = rule.match(
+            data=data,
+            timeout=Settings().get_integer("yara.timeout")
+        )
+
+        for match in matches:
+            name = match.rule
+
+            # Include the description field if its present in the metadata
+            try:
+                description = f"{name}: {match.meta['description']}"
+            except KeyError:
+                description = f"{name}"
+
+            tag = self.bv.create_tag(self.bv.tag_types["YARA Matches"], description, True)
+
+            for address, var, value in match.strings:
+                address += start
+
+                # Display data values correctly in the report
+                if value.isascii():
+                    value = value.decode("ascii")
+                elif self.bv.endianness == Endianness.BigEndian:
+                    value = hex(int.from_bytes(value, "big"))
+                else:
+                    value = hex(int.from_bytes(value, "little"))
+
+                self.results.append({
+                    "address": address,
+                    "name": name,
+                    "string": var,
+                    "value": value
+                })
+
+                # Add either an address or data tag to the location
+                funcs = self.bv.get_functions_containing(address)
+                if 0 < len(funcs):
+                    # Ensure the tag is not placed in the middle of an instruction
+                    address = get_instruction_containing(funcs[0], address)
+                    funcs[0].add_user_address_tag(address, tag)
+                else:
+                    self.bv.add_user_data_tag(address, tag)
+
+    def display_report(self):
         contents = """# YARA Results
 
 | Address | Name | String | Value |
 |---------|------|--------|-------|
 """
 
-        for result in results:
+        for result in self.results:
             contents += "| [0x{:x}](binaryninja://?expr=0x{:x}) | {} | {} | {} |\n".format(
                 result["address"],
                 result["address"],
@@ -162,7 +186,7 @@ def scan(bv):
 def scan_with_file(bv):
     filepath = get_open_filename_input("Open YARA rule", "YARA rules (*.yar *.yara)")
     if filepath:
-        ys = YaraScan(bv, filepath=filepath)
+        ys = YaraScan(bv, filepath=filepath.decode())
         ys.start()
 
 

@@ -25,6 +25,8 @@ YARA rules can be loaded from a specific file by selecting _Scan with File_.
 This will not load any other rules.
 The _Scan_ menu option will load all built-in signatures in addition to searching for any YARA files (*.yar, *.yara) in custom locations that the user has provided in the plugin's settings.
 
+_NOTE:_ This plugin scans the binary based on it's segments, which means that YARA rules that check whether the binary is a PE or ELF file will fail to match unless scanning in the raw binary view.
+
 ### Settings
 
 This plugin provides the following settings:
