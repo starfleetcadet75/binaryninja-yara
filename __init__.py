@@ -186,7 +186,7 @@ def scan(bv):
 def scan_with_file(bv):
     filepath = get_open_filename_input("Open YARA rule", "YARA rules (*.yar *.yara)")
     if filepath:
-        ys = YaraScan(bv, filepath=filepath.decode())
+        ys = YaraScan(bv, filepath=filepath)
         ys.start()
 
 
